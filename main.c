@@ -13,7 +13,8 @@
 #define FCY 72000000UL  
 #define BRGVAL ((FCY / (16 * BAUDRATE)) - 1)
 
-/*ASSIGNMENT3 BASE
+//ASSIGNMENT3 BASE
+/*
 void UART1_Init(void) {
     // Configure RD11 as input (U1RX) and RD0 as output (U1TX)
     TRISDbits.TRISD11 = 1; // Set RD11 as input
@@ -53,7 +54,6 @@ void UART1_Echo(void) {
     char receivedChar = UART1_ReadChar();
     UART1_WriteChar(receivedChar); // Echo back the received character
 }
- * 
 int main(void) {
     UART1_Init(); // Initialize UART1
     while (1) {
@@ -61,8 +61,7 @@ int main(void) {
     }
     return 0;
 }
- */
-
+*/
 //ASSIGNMENT3 ADVANCED
 
 int i = 0;
@@ -109,12 +108,17 @@ void UART1_WriteChar(char c) {
 }
 
 char UART1_ReadChar(void) {
-     if (U1STAbits.URXDA) { // Se c'è un carattere disponibile
+    
+    //while (!U1STAbits.URXDA); // Wait until data is received
+    //return U1RXREG;
+    
+    if (U1STAbits.URXDA) { // Se c'è un carattere disponibile
         counter++;
         return U1RXREG;    // Leggilo e restituiscilo
     } else {
         return '\0';       // Altrimenti, restituisci un valore neutro (es. NULL o '\0')
     }
+    
 }
 
 void UART1_Echo(void) {
