@@ -13,7 +13,7 @@
 #define FCY 72000000UL  
 #define BRGVAL ((FCY / (16 * BAUDRATE)) - 1)
 
-
+/*ASSIGNMENT3 BASE
 void UART1_Init(void) {
     // Configure RD11 as input (U1RX) and RD0 as output (U1TX)
     TRISDbits.TRISD11 = 1; // Set RD11 as input
@@ -53,29 +53,52 @@ void UART1_Echo(void) {
     char receivedChar = UART1_ReadChar();
     UART1_WriteChar(receivedChar); // Echo back the received character
 }
-/*
-int main(void) {
-    
-    TRISDbits.TRISD11 = 1; // set RD11 as input
-    TRISDbits.TRISD0 = 0;  // Set RD0 as output
-
-    RPINR18bits.U1RXR = 75;  // RD11 corresponds to RPI75
-    RPOR0bits.RP64R = 1;    // RD0 corresponds to RP64, map it to U1TX (1)
-    
-    TRISDbits.TRISD0 = 0;
-    
-    U1BRG = 11; // (7372800 / 4) / (16 ? 9600)? 1
-    U1MODEbits.UARTEN = 1; // enable UART
-    U1STAbits.UTXEN = 1; // enable U1TX (must be after UARTEN)
-    U1TXREG = ?C?; // send ?C?
-    
- * return 0;
- */
-
+ * 
 int main(void) {
     UART1_Init(); // Initialize UART1
     while (1) {
         UART1_Echo(); // Continuously echo received characters
     }
     return 0;
+}
+*/
+
+//ASSIGNMENT3 ADVANCED
+
+int i = 0;
+int led1 = 1;
+
+void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
+    IFS0bits.T1IF = 0; // reset interrupt flag
+    i = i + 1;
+    if(i == 20){
+        i = 0;
+    }
+    if (i == 20 && led1 == 1) {
+        LATGbits.LATG9 = !LATGbits.LATG9;
+    }
+}
+
+void algorithm() {
+  tmr_wait_ms(TIMER2, 7);
+}
+
+int main() {
+        ANSELA = ANSELB = ANSELC = ANSELD = ANSELE = ANSELG = 0x0000;
+    
+    IEC0bits.T1IE = 1;
+    
+    TRISAbits.TRISA0 = 0;
+    LATAbits.LATA0 = 0;
+    TRISGbits.TRISG9 = 0;
+    LATGbits.LATG9 = 0;
+    
+  tmr_setup_period(TIMER1, 10);
+  //int count = 0;
+  while(1) {
+    algorithm();
+    // code to handle the assignment
+    tmr_wait_period(TIMER1);
+  }
+  
 }
