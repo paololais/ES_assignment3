@@ -71,11 +71,13 @@ int led1 = 1;
 void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
     IFS0bits.T1IF = 0; // reset interrupt flag
     i = i + 1;
+    
     if(i == 20){
         i = 0;
-    }
-    if (i == 20 && led1 == 1) {
-        LATGbits.LATG9 = !LATGbits.LATG9;
+        
+        if (led1 == 1) {
+            LATGbits.LATG9 = !LATGbits.LATG9;
+        }
     }
 }
 
