@@ -9,8 +9,8 @@
 #include "xc.h"
 #include "timer.h"
 
-#define BAUDRATE 9600
-#define FCY 40000000UL  // Assuming Fosc = 40MHz (Adjust as per your system clock)
+#define BAUDRATE 9600UL
+#define FCY 72000000UL  
 #define BRGVAL ((FCY / (16 * BAUDRATE)) - 1)
 
 
@@ -23,19 +23,20 @@ void UART1_Init(void) {
     RPINR18bits.U1RXR = 75; // RD11 corresponds to RPI75
     RPOR0bits.RP64R = 1;    // RD0 corresponds to RP64, map it to U1TX (1)
     
+    U1BRG = BRGVAL; // Set baud rate
     // Configure UART1
-    U1MODEbits.UARTEN = 0; // Disable UART before configuration
-    U1BRG = BRGVAL;        // Set baud rate
-    U1MODEbits.BRGH = 0;   // Standard speed mode
-    U1MODEbits.PDSEL = 0;  // 8-bit data, no parity
-    U1MODEbits.STSEL = 0;  // 1 Stop bit
+    //U1MODEbits.UARTEN = 0; // Disable UART before configuration
+    //U1MODEbits.BRGH = 0;   // Standard speed mode
+    //U1MODEbits.PDSEL = 0;  // 8-bit data, no parity
+    //U1MODEbits.STSEL = 0;  // 1 Stop bit
     
-    // Enable Transmit and Receive
+    // Enable UART -- SET IT BEFORE
+    U1MODEbits.UARTEN = 1;
+    
+    // THEN U CAN -- Enable Transmit and Receive
     U1STAbits.UTXEN = 1;
     U1STAbits.URXDA = 1;
-    
-    // Enable UART
-    U1MODEbits.UARTEN = 1;
+
 }
 
 void UART1_WriteChar(char c) {
@@ -55,11 +56,13 @@ void UART1_Echo(void) {
 /*
 int main(void) {
     
-    TRISDbits.TRISD11 = 1;
-    RPINR18bits.U1RXR = 75;
+    TRISDbits.TRISD11 = 1; // set RD11 as input
+    TRISDbits.TRISD0 = 0;  // Set RD0 as output
+
+    RPINR18bits.U1RXR = 75;  // RD11 corresponds to RPI75
+    RPOR0bits.RP64R = 1;    // RD0 corresponds to RP64, map it to U1TX (1)
     
     TRISDbits.TRISD0 = 0;
-    RPOR0bits.RP64R = 1;
     
     U1BRG = 11; // (7372800 / 4) / (16 ? 9600)? 1
     U1MODEbits.UARTEN = 1; // enable UART
