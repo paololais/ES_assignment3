@@ -63,6 +63,9 @@ int main(void) {
 
 //ASSIGNMENT3 ADVANCED
 int i = 0;
+int led2 = 1;
+int counter = 0; //a counter of how many chars you have received
+char window[3];
 
 void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
     IFS0bits.T1IF = 0; // reset interrupt flag
@@ -70,12 +73,11 @@ void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
 
     if (i == 20) {
         i = 0;
-            LATGbits.LATG9 = !LATGbits.LATG9;
-    }
-}
 
-void algorithm() {
-    tmr_wait_ms(TIMER2, 7);
+        if (led2 == 1) {
+            LATGbits.LATG9 = !LATGbits.LATG9;
+        }
+    }
 }
 
 void UART1_Init(void) {
@@ -88,11 +90,6 @@ void UART1_Init(void) {
     RPOR0bits.RP64R = 1;    // RD0 corresponds to RP64, map it to U1TX (1)
     
     U1BRG = BRGVAL; // Set baud rate
-    // Configure UART1
-    //U1MODEbits.UARTEN = 0; // Disable UART before configuration
-    //U1MODEbits.BRGH = 0;   // Standard speed mode
-    //U1MODEbits.PDSEL = 0;  // 8-bit data, no parity
-    //U1MODEbits.STSEL = 0;  // 1 Stop bit
     
     // Enable UART -- SET IT BEFORE
     U1MODEbits.UARTEN = 1;
@@ -109,15 +106,40 @@ void UART1_WriteChar(char c) {
 }
 
 char UART1_ReadChar(void) {
-    while (!U1STAbits.URXDA); // Wait until data is received
-    return U1RXREG;
+     if (U1STAbits.URXDA) { // Se c'è un carattere disponibile
+        counter++;
+        return U1RXREG;    // Leggilo e restituiscilo
+    } else {
+        return '\0';       // Altrimenti, restituisci un valore neutro (es. NULL o '\0')
+    }
 }
 
 void UART1_Echo(void) {
     char receivedChar = UART1_ReadChar();
+    updateWindow(receivedChar);
     UART1_WriteChar(receivedChar); // Echo back the received character
 }
-int main(void) {
+
+void updateWindow(char newChar) {
+    // Shift a sinistra
+    window[0] = window[1];
+    window[1] = window[2];
+    window[2] = newChar;
+
+    // Controlla se la finestra contiene "LD1"
+    if (window[0] == 'L' && window[1] == 'D' && window[2] == '1') {
+        LATAbits.LATA0 = !LATAbits.LATA0; //toggle led1
+    }
+    else if (window[0] == 'L' && window[1] == 'D' && window[2] == '2') {
+        led2 = !led2;
+    }
+}
+
+void algorithm() {
+    tmr_wait_ms(TIMER2, 7);
+}
+
+int main() {
     ANSELA = ANSELB = ANSELC = ANSELD = ANSELE = ANSELG = 0x0000;
 
     IEC0bits.T1IE = 1;
@@ -127,14 +149,13 @@ int main(void) {
     TRISGbits.TRISG9 = 0;
     LATGbits.LATG9 = 0;
     
-    UART1_Init();// Initialize UART1
+    UART1_Init(); // Initialize UART1
+
     tmr_setup_period(TIMER1, 10);
-    
+    //int count = 0;
     while (1) {
         algorithm();
-        
-        UART1_Echo(); // Continuously echo received characters
-        ret = tmr_wait_period(TIMER1);
+        // code to handle the assignment
+        UART1_Echo();
     }
-    return 0;
 }
