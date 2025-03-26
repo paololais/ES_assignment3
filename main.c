@@ -106,12 +106,8 @@ void UART1_WriteChar(char c) {
 }
 
 char UART1_ReadChar(void) {
-     if (U1STAbits.URXDA) { // Se c'è un carattere disponibile
-        counter++;
-        return U1RXREG;    // Leggilo e restituiscilo
-    } else {
-        return '\0';       // Altrimenti, restituisci un valore neutro (es. NULL o '\0')
-    }
+    while (!U1STAbits.URXDA); // Wait until data is received
+    return U1RXREG;
 }
 
 void UART1_Echo(void) {
