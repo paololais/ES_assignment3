@@ -145,6 +145,8 @@ int main() {
     TRISGbits.TRISG9 = 0;
     LATGbits.LATG9 = 0;
     
+    int ret;
+    
     UART1_Init(); // Initialize UART1
 
     tmr_setup_period(TIMER1, 10);
@@ -153,5 +155,10 @@ int main() {
         algorithm();
         // code to handle the assignment
         UART1_Echo();
+        ret = tmr_wait_period(TIMER1);
+        while(!ret){
+            UART1_Echo();
+            ret = tmr_wait_period(TIMER1);
+        }
     }
 }
