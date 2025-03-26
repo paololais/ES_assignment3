@@ -80,6 +80,23 @@ void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
     }
 }
 
+void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
+  IFS0bits.T2IF = 0; 
+  IEC0bits.T2IE = 0;
+  T2CONbits.TON = 0; 
+  IEC1bits.INT1IE = 1;
+
+  if (PORTEbits.RE8 == 1) {
+      UART1_WriteChar(counter);
+  }
+}
+
+void __attribute__((__interrupt__, __auto_psv__)) _INT1Interrupt(){
+  IFS1bits.INT1IF = 0;
+  IEC0bits.T2IE = 1;
+  tmr_setup_period(TIMER2, 10); //bouncing
+}
+
 void UART1_Init(void) {
     // Configure RD11 as input (U1RX) and RD0 as output (U1TX)
     TRISDbits.TRISD11 = 1; // Set RD11 as input
@@ -107,6 +124,7 @@ void UART1_WriteChar(char c) {
 
 char UART1_ReadChar(void) {
     while (!U1STAbits.URXDA); // Wait until data is received
+    counter++;
     return U1RXREG;
 }
 
@@ -144,6 +162,13 @@ int main() {
     LATAbits.LATA0 = 0;
     TRISGbits.TRISG9 = 0;
     LATGbits.LATG9 = 0;
+    
+    //T2 button
+    TRISEbits.TRISE8 = 1;
+    RPINR0bits.INT1R = 0x58;
+    INTCON2bits.GIE = 1;
+    IFS1bits.INT1IF = 0;
+    IEC1bits.INT1IE = 1;
     
     int ret;
     
