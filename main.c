@@ -90,9 +90,6 @@ void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
   if (PORTEbits.RE8 == 1) {
       UART1_WriteChar(counter);
   }
-  if (PORTEbits.RE9 == 1) {
-      UART1_WriteChar((char) missed_deadlines);
-  }
 }
 
 void __attribute__((__interrupt__, __auto_psv__)) _INT1Interrupt(){
