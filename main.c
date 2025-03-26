@@ -65,6 +65,7 @@ int main(void) {
 int i = 0;
 int led2 = 1;
 int counter = 0; //a counter of how many chars you have received
+char char_counter;
 char window[3];
 
 void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
@@ -87,7 +88,8 @@ void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
   IEC1bits.INT1IE = 1;
 
   if (PORTEbits.RE8 == 1) {
-      UART1_WriteChar(counter);
+      char_counter = (char) counter;
+      UART1_WriteChar(char_counter);
   }
 }
 
