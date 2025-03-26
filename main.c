@@ -65,8 +65,8 @@ int main(void) {
 int i = 0;
 int led2 = 1;
 int counter = 0; //a counter of how many chars you have received
-char char_counter;
 char window[3];
+int missed_deadlines = 0;
 
 void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
     IFS0bits.T1IF = 0; // reset interrupt flag
@@ -88,8 +88,10 @@ void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
   IEC1bits.INT1IE = 1;
 
   if (PORTEbits.RE8 == 1) {
-      char_counter = (char) counter;
-      UART1_WriteChar(char_counter);
+      UART1_WriteChar(counter);
+  }
+  if (PORTEbits.RE9 == 1) {
+      UART1_WriteChar((char) missed_deadlines);
   }
 }
 
@@ -97,6 +99,12 @@ void __attribute__((__interrupt__, __auto_psv__)) _INT1Interrupt(){
   IFS1bits.INT1IF = 0;
   IEC0bits.T2IE = 1;
   tmr_setup_period(TIMER2, 10); //bouncing
+}
+
+void __attribute__((__interrupt__, __auto_psv__)) _INT2Interrupt() {
+    IFS1bits.INT2IF = 0;  // Reset flag
+    IEC0bits.T2IE = 1;
+    tmr_setup_period(TIMER2, 10); //bouncing
 }
 
 void UART1_Init(void) {
@@ -158,19 +166,26 @@ void algorithm() {
 int main() {
     ANSELA = ANSELB = ANSELC = ANSELD = ANSELE = ANSELG = 0x0000;
 
-    IEC0bits.T1IE = 1;
+    //IEC0bits.T1IE = 1;
 
     TRISAbits.TRISA0 = 0;
     LATAbits.LATA0 = 0;
     TRISGbits.TRISG9 = 0;
     LATGbits.LATG9 = 0;
     
+    INTCON2bits.GIE = 1; //abilita interrupt globali
+    
     //T2 button
     TRISEbits.TRISE8 = 1;
     RPINR0bits.INT1R = 0x58;
-    INTCON2bits.GIE = 1;
     IFS1bits.INT1IF = 0;
     IEC1bits.INT1IE = 1;
+    
+    // Configura T3 (RE9) per generare un interrupt su INT2
+    TRISEbits.TRISE9 = 1;  // T3 come input
+    RPINR1bits.INT2R = 0x59;  // Mappa RE9 su INT2
+    IFS1bits.INT2IF = 0;  // Reset flag INT2
+    IEC1bits.INT2IE = 1;  // Abilita interrupt INT2
     
     int ret;
     
@@ -179,13 +194,22 @@ int main() {
     tmr_setup_period(TIMER1, 10);
     //int count = 0;
     while (1) {
-        algorithm();
+        algorithm(); 
         // code to handle the assignment
         UART1_Echo();
+        i++;
+        if (i == 20) {
+            i = 0;
+
+            if (led2 == 1) {
+                LATGbits.LATG9 = !LATGbits.LATG9;
+            }
+        }
+        
         ret = tmr_wait_period(TIMER1);
-        while(!ret){
-            UART1_Echo();
-            ret = tmr_wait_period(TIMER1);
+        
+        if(ret){
+            missed_deadlines++;
         }
     }
 }
