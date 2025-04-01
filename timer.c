@@ -65,18 +65,24 @@ void tmr_wait_period(int timer){
 
 int tmr_wait_period(int timer){
     if (timer == 1){
-        if(IFS0bits.T1IF == 0) return 0; 
-         else if(IFS0bits.T1IF == 1){
-             IFS0bits.T1IF = 0;
-             return 1;
-         }
+        if(IFS0bits.T1IF == 0){
+            while (IFS0bits.T1IF == 0);
+            return 0; 
+        }
+        else if(IFS0bits.T1IF == 1){
+            IFS0bits.T1IF = 0;
+            return 1;
+        }
     }
     else if(timer == 2){
-        if(IFS0bits.T2IF == 0) return 0; 
-         else if(IFS0bits.T2IF == 1){
-             IFS0bits.T2IF = 0;
-             return 1;
-         }
+        if(IFS0bits.T2IF == 0){
+            while (IFS0bits.T2IF == 0);
+            return 0;
+        }
+        else if(IFS0bits.T2IF == 1){
+            IFS0bits.T2IF = 0;
+            return 1;
+        }
     }
 }
 void tmr_wait_ms(int timer, int ms){

@@ -185,9 +185,5 @@ int main() {
                                        //Se il timer NON è ancora scaduto, ret sarà 0.
                                        //Se il timer è scaduto, ret sarà 1, segnalando che il ciclo può proseguire.
         
-        while (!ret) { // Se non è trascorso il periodo del timer, continua a gestire UART
-            UART1_Echo();
-            ret = tmr_wait_period(TIMER1);
-        }
     }
 }
