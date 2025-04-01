@@ -6,7 +6,7 @@
  */
 
 
-#include "timer.h"
+#include "uart.h"
 
 // Inizializzazione UART1
 void UART1_Init(void) {
@@ -32,7 +32,7 @@ void UART1_WriteChar(char c) {
 // Legge un carattere dalla UART1
 char UART1_ReadChar(void) {
     while (!U1STAbits.URXDA); // Attende finché non riceve un carattere
-    counter++; // Incrementa il contatore dei caratteri ricevuti
+    //counter++; // Incrementa il contatore dei caratteri ricevuti
     return U1RXREG;
 }
 

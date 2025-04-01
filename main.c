@@ -63,25 +63,10 @@ int main(void) {
 */
 
 //ASSIGNMENT3 ADVANCED
-int i = 0;
 int led2 = 1;
 int counter = 0; // Contatore dei caratteri ricevuti via UART
 char char_counter;
 char window[3]; // Array per memorizzare gli ultimi tre caratteri ricevuti
-
-// Interrupt per il Timer 1
-void __attribute__((__interrupt__, __auto_psv__)) _T1Interrupt() {
-    IFS0bits.T1IF = 0; // Reset del flag di interrupt di Timer 1
-    i = i + 1;
-
-    // Dopo 20 tick (200ms se ogni tick = 10ms), lampeggia il LED
-    if (i == 20) {
-        i = 0;
-        if (led2 == 1) {
-            LATGbits.LATG9 = !LATGbits.LATG9; // Toggle LED2
-        }
-    }
-}
 
 // Interrupt per il Timer 2
 void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
@@ -126,8 +111,6 @@ void algorithm() {
 int main() {
     ANSELA = ANSELB = ANSELC = ANSELD = ANSELE = ANSELG = 0x0000; // Disabilita gli ingressi analogici
 
-    IEC0bits.T1IE = 1; // Abilita l'interrupt di Timer 1
-
     TRISAbits.TRISA0 = 0; // Configura LED1 come output
     LATAbits.LATA0 = 0; // Spegne LED1
     TRISGbits.TRISG9 = 0; // Configura LED2 come output
@@ -144,9 +127,28 @@ int main() {
     UART1_Init(); // Inizializza UART1
     tmr_setup_period(TIMER1, 10); // Configura Timer 1 con periodo di 10ms
     
+    int i = 0;
+    
     while (1) {
         algorithm(); // Esegue un ritardo di 7ms
+        
+        //blink led2
+        i = i + 1;
+        // Dopo 20 tick (200ms se ogni tick = 10ms), lampeggia il LED
+        if (i == 20) {
+            i = 0;
+            if (led2 == 1) {
+                LATGbits.LATG9 = !LATGbits.LATG9; // Toggle LED2
+            }
+        }
+         
         UART1_Echo(); // Gestisce la comunicazione UART
+        
+        // circular buffer -> calcolare dimensione corretta in base a quanti dati arrivano e a che frequenza
+        // uart read dal circular buffer
+        // interrupt per read e write uart
+        
+        
         ret = tmr_wait_period(TIMER1); // Aspetta il prossimo tick di Timer 1. Questa funzione aspetta che scada il periodo impostato per Timer1.
                                        //Se il timer NON è ancora scaduto, ret sarà 0.
                                        //Se il timer è scaduto, ret sarà 1, segnalando che il ciclo può proseguire.
