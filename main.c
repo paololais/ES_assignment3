@@ -159,7 +159,6 @@ int main() {
     int ret;
     int i = 0;
     char pop_value;
-    char led[]
     CircularBuffer cb;
     cb_init(&cb);
     
@@ -189,26 +188,8 @@ int main() {
         
         while(cb->count!=0){
             cb_pop(&cb, &pop_value);
-            if (pop_value == 'L'){
-                flag_L = 1;
-            }
-            
-            if (pop_value == 'D' && flag_L == 1){
-                flag_D = 1;
-            } else flag_L = 0;
-            
-            if (pop_value == '1' && flag_L == 1 && flag_D == 1){
-                flag_1 = 1;
-            } else{
-                flag_L = 0;
-                flag_D = 0;
-            }
-            
-            
-
+            updateWindow(pop_value);
         }
-         
-        UART1_Echo(); // Gestisce la comunicazione UART
         
         // circular buffer -> calcolare dimensione corretta in base a quanti dati arrivano e a che frequenza
         // uart read dal circular buffer
