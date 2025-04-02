@@ -11,6 +11,39 @@
 #define BAUDRATE 9600UL
 #define FCY 72000000UL  
 #define BRGVAL ((FCY / (16 * BAUDRATE)) - 1)
+#define BUFFER_SIZE 32
+
+typedef struct {
+    char buffer[BUFFER_SIZE]; // Array che contiene i dati
+    int head; // Indice di scrittura
+    int tail; // Indice di lettura
+    int count; // Numero di elementi nel buffer
+} CircularBuffer;
+
+void cb_init(CircularBuffer *cb) {
+    cb->head = 0;
+    cb->tail = 0;
+    cb->count = 0;
+}
+
+void cb_push(CircularBuffer *cb, char value) {
+    
+    cb->buffer[cb->head] = value; // Scrive il valore
+    cb->head = (cb->head + 1) % BUFFER_SIZE; // Incremento circolare
+    cb->count++;
+}
+
+int cb_pop(CircularBuffer *cb, int *value) {
+    if (cb->count == 0) {
+        return -1; // Buffer vuoto
+    }
+
+    *value = cb->buffer[cb->tail]; // Legge il valore
+    cb->tail = (cb->tail + 1) % BUFFER_SIZE; // Incremento circolare
+    cb->count--;
+    return 0; // Successo
+}
+
 
 //ASSIGNMENT3 BASE
 /*
@@ -64,7 +97,7 @@ int main(void) {
 
 //ASSIGNMENT3 ADVANCED
 int led2 = 1;
-int counter = 0; // Contatore dei caratteri ricevuti via UART
+int counter_char = 0; // Contatore dei caratteri ricevuti via UART
 char char_counter;
 char window[3]; // Array per memorizzare gli ultimi tre caratteri ricevuti
 
@@ -124,10 +157,15 @@ int main() {
     IEC1bits.INT1IE = 1; // Abilita interrupt INT1
     
     int ret;
+    int i = 0;
+    char pop_value;
+    char led[]
+    CircularBuffer cb;
+    cb_init(&cb);
+    
     UART1_Init(); // Inizializza UART1
     tmr_setup_period(TIMER1, 10); // Configura Timer 1 con periodo di 10ms
     
-    int i = 0;
     
     while (1) {
         algorithm(); // Esegue un ritardo di 7ms
@@ -140,6 +178,34 @@ int main() {
             if (led2 == 1) {
                 LATGbits.LATG9 = !LATGbits.LATG9; // Toggle LED2
             }
+        }
+        
+        while (U1STAbits.URXDA){
+            char receivedChar = UART1_ReadChar();
+            cb_push(&cb, receivedChar);
+            counter_char++;
+            
+        }
+        
+        while(cb->count!=0){
+            cb_pop(&cb, &pop_value);
+            if (pop_value == 'L'){
+                flag_L = 1;
+            }
+            
+            if (pop_value == 'D' && flag_L == 1){
+                flag_D = 1;
+            } else flag_L = 0;
+            
+            if (pop_value == '1' && flag_L == 1 && flag_D == 1){
+                flag_1 = 1;
+            } else{
+                flag_L = 0;
+                flag_D = 0;
+            }
+            
+            
+
         }
          
         UART1_Echo(); // Gestisce la comunicazione UART
