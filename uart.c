@@ -21,6 +21,7 @@ void UART1_Init(void) {
     U1MODEbits.UARTEN = 1; // Abilita UART1
     U1STAbits.UTXEN = 1; // Abilita la trasmissione
     U1STAbits.URXDA = 1; // Abilita la ricezione
+    IEC0bits.U1RXIE = 1;   // Abilita interrupt RX
 }
 
 // Scrive un carattere sulla UART1
@@ -37,6 +38,6 @@ char UART1_ReadChar(void) {
 // Funzione di echo (reinvia il carattere ricevuto)
 void UART1_Echo(void) {
     char receivedChar = UART1_ReadChar(); // Legge un carattere
-    updateWindow(receivedChar); // Aggiorna la finestra di rilevamento comandi
+    //updateWindow(receivedChar); // Aggiorna la finestra di rilevamento comandi
     UART1_WriteChar(receivedChar); // Reinvia il carattere ricevuto
 }
