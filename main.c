@@ -11,7 +11,7 @@
 #define BAUDRATE 9600UL
 #define FCY 72000000UL  
 #define BRGVAL ((FCY / (16 * BAUDRATE)) - 1)
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 32 // da calcolare in base a quanti dati ricevo/trasmetto
 
 typedef struct {
     char buffer[BUFFER_SIZE]; // Array che contiene i dati
@@ -30,20 +30,19 @@ void cb_push(CircularBuffer *cb, char value) {
     
     cb->buffer[cb->head] = value; // Scrive il valore
     cb->head = (cb->head + 1) % BUFFER_SIZE; // Incremento circolare
+    if (cb->count == BUFFER_SIZE) return; // Buffer pieno, non incremento count
     cb->count++;
 }
 
-int cb_pop(CircularBuffer *cb, int *value) {
-    if (cb->count == 0) {
-        return -1; // Buffer vuoto
-    }
-
+void cb_pop(CircularBuffer *cb, char *value) {
     *value = cb->buffer[cb->tail]; // Legge il valore
     cb->tail = (cb->tail + 1) % BUFFER_SIZE; // Incremento circolare
     cb->count--;
-    return 0; // Successo
 }
 
+int cb_is_empty(CircularBuffer *cb) {
+    return cb->count == 0;
+}
 
 //ASSIGNMENT3 BASE
 /*
@@ -98,8 +97,19 @@ int main(void) {
 //ASSIGNMENT3 ADVANCED
 int led2 = 1;
 int counter_char = 0; // Contatore dei caratteri ricevuti via UART
-char char_counter;
-char window[3]; // Array per memorizzare gli ultimi tre caratteri ricevuti
+
+typedef enum {IDLE, S_L, S_LD} UART_State;
+UART_State uartState = IDLE;
+CircularBuffer cb;
+
+// ? Interrupt UART RX
+void __attribute__((__interrupt__, __auto_psv__)) _U1RXInterrupt() {
+    char receivedChar = U1RXREG; // Legge carattere ricevuto
+    cb_push(&cb, receivedChar);
+    //handle_UART_FSM(receivedChar); // ora gestisco con la pop in processReceivedData())
+    counter_char++; // Incrementa contatore caratteri
+    IFS0bits.U1RXIF = 0; // Reset flag interrupt
+}
 
 // Interrupt per il Timer 2
 void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
@@ -108,9 +118,8 @@ void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
   T2CONbits.TON = 0; // Ferma il Timer 2
   IEC1bits.INT1IE = 1; // Riabilita l'interrupt su INT1
 
-  if (PORTEbits.RE8 == 1) { // Se il pulsante √® premuto
-      char_counter = (char) counter;
-      UART1_WriteChar(char_counter); // Invia il conteggio dei caratteri ricevuti
+  if (PORTEbits.RE8 == 1) { // Se il pulsante Ë premuto
+      UART1_WriteChar((char) counter_char); // Invia il conteggio dei caratteri ricevuti
   }
 }
 
@@ -121,18 +130,36 @@ void __attribute__((__interrupt__, __auto_psv__)) _INT1Interrupt(){
   tmr_setup_period(TIMER2, 10); // Imposta il debounce del pulsante
 }
 
-// Funzione per aggiornare la finestra e rilevare comandi speciali
-void updateWindow(char newChar) {
-    window[0] = window[1];
-    window[1] = window[2];
-    window[2] = newChar;
-
-    // Controllo della sequenza ricevuta
-    if (window[0] == 'L' && window[1] == 'D' && window[2] == '1') {
-        LATAbits.LATA0 = !LATAbits.LATA0; // Toggle LED1
+// Funzione che elabora i caratteri dal buffer circolare
+void processReceivedData() {
+    char receivedChar;
+    
+    // Se ci sono caratteri nel buffer
+    while (!cb_is_empty(&cb)) {
+        // Pop del carattere dal buffer
+        cb_pop(&cb, &receivedChar);
+        
+        handle_UART_FSM(receivedChar); // Gestisce il carattere in base alla FSM
     }
-    else if (window[0] == 'L' && window[1] == 'D' && window[2] == '2') {
-        led2 = !led2; // Toggle variabile per LED2
+}
+
+void handle_UART_FSM(char receivedChar) {
+    switch (uartState) {
+        case IDLE:
+            if (receivedChar == 'L') uartState = S_L;
+            break;
+        case S_L:
+            if (receivedChar == 'D') uartState = S_LD;
+            else uartState = IDLE;
+            break;
+        case S_LD:
+            if (receivedChar == '1') {
+                LATAbits.LATA0 = !LATAbits.LATA0; // Toggle LED1
+            } else if (receivedChar == '2') {
+                led2 = !led2; // Toggle LED2
+            }
+            uartState = IDLE; // Reset stato
+            break;
     }
 }
 
@@ -158,8 +185,7 @@ int main() {
     
     int ret;
     int i = 0;
-    char pop_value;
-    CircularBuffer cb;
+    
     cb_init(&cb);
     
     UART1_Init(); // Inizializza UART1
@@ -179,26 +205,13 @@ int main() {
             }
         }
         
-        while (U1STAbits.URXDA){
-            char receivedChar = UART1_ReadChar();
-            cb_push(&cb, receivedChar);
-            counter_char++;
-            
-        }
-        
-        while(cb->count!=0){
-            cb_pop(&cb, &pop_value);
-            updateWindow(pop_value);
-        }
-        
         // circular buffer -> calcolare dimensione corretta in base a quanti dati arrivano e a che frequenza
         // uart read dal circular buffer
         // interrupt per read e write uart
-        
+         processReceivedData(); // Elabora i dati ricevuti nel buffer circolare -> pop
         
         ret = tmr_wait_period(TIMER1); // Aspetta il prossimo tick di Timer 1. Questa funzione aspetta che scada il periodo impostato per Timer1.
-                                       //Se il timer NON √® ancora scaduto, ret sar√† 0.
-                                       //Se il timer √® scaduto, ret sar√† 1, segnalando che il ciclo pu√≤ proseguire.
-        
+                                       //Se il timer NON Ë ancora scaduto, ret sar‡ 0.
+                                       //Se il timer Ë scaduto, ret sar‡†1, segnalando che il ciclo puÚ proseguire.      
     }
 }
