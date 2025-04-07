@@ -30,7 +30,10 @@ void cb_push(CircularBuffer *cb, char value) {
     
     cb->buffer[cb->head] = value; // Scrive il valore
     cb->head = (cb->head + 1) % BUFFER_SIZE; // Incremento circolare
-    if (cb->count == BUFFER_SIZE) return; // Buffer pieno, non incremento count
+    if (cb->count == BUFFER_SIZE){
+        cb->tail = (cb->tail + 1) % BUFFER_SIZE;
+        return; // Buffer pieno, non incremento count
+    }
     cb->count++;
 }
 
@@ -97,6 +100,8 @@ int main(void) {
 //ASSIGNMENT3 ADVANCED
 int led2 = 1;
 int counter_char = 0; // Contatore dei caratteri ricevuti via UART
+int missed_deadlines = 0; // variabile per tenere traccia delle deadlines mancate
+                              // a seconda del return di wait_period
 
 typedef enum {IDLE, S_L, S_LD} UART_State;
 UART_State uartState = IDLE;
@@ -111,23 +116,40 @@ void __attribute__((__interrupt__, __auto_psv__)) _U1RXInterrupt() {
     IFS0bits.U1RXIF = 0; // Reset flag interrupt
 }
 
-// Interrupt per il Timer 2
-void __attribute__((__interrupt__, __auto_psv__)) _T2Interrupt(){
-  IFS0bits.T2IF = 0; // Reset del flag di interrupt di Timer 2
-  IEC0bits.T2IE = 0; // Disabilita l'interrupt di Timer 2
-  T2CONbits.TON = 0; // Ferma il Timer 2
-  IEC1bits.INT1IE = 1; // Riabilita l'interrupt su INT1
+// Interrupt per il Timer 3
+void __attribute__((__interrupt__, __auto_psv__)) _T3Interrupt(){
+  IFS0bits.T3IF = 0; // Reset del flag di interrupt di Timer 3
+  IEC0bits.T3IE = 0; // Disabilita l'interrupt di Timer 3
+  T3CONbits.TON = 0; // Ferma il Timer 3
+  IEC1bits.INT1IE = 1; // Riabilita l'interrupt su INT2
 
   if (PORTEbits.RE8 == 1) { // Se il pulsante è premuto
       UART1_WriteChar((char) counter_char); // Invia il conteggio dei caratteri ricevuti
   }
 }
+// Interrupt per il Timer 4
+void __attribute__((__interrupt__, __auto_psv__)) _T4Interrupt(){
+  IFS1bits.T4IF = 0; // Reset del flag di interrupt di Timer 3
+  IEC1bits.T4IE = 0; // Disabilita l'interrupt di Timer 3
+  T4CONbits.TON = 0; // Ferma il Timer 3
+  IEC1bits.INT2IE = 1; // Riabilita l'interrupt su INT2
 
+  if (PORTEbits.RE9 == 1) { // Se il pulsante è premuto
+      UART1_WriteChar((char) missed_deadlines); // Invia il conteggio dei caratteri ricevuti
+  }
+}
 // Interrupt per INT1 (pulsante)
 void __attribute__((__interrupt__, __auto_psv__)) _INT1Interrupt(){
   IFS1bits.INT1IF = 0; // Reset del flag di interrupt
-  IEC0bits.T2IE = 1; // Abilita l'interrupt del Timer 2
-  tmr_setup_period(TIMER2, 10); // Imposta il debounce del pulsante
+  IEC0bits.T3IE = 1; // Abilita l'interrupt del Timer 3
+  tmr_setup_period(TIMER3, 10); // Imposta il debounce del pulsante
+}
+
+// Interrupt per INT2 (pulsante)
+void __attribute__((__interrupt__, __auto_psv__)) _INT2Interrupt(){
+  IFS1bits.INT2IF = 0; // Reset del flag di interrupt
+  IEC1bits.T4IE = 1; // Abilita l'interrupt del Timer 4
+  tmr_setup_period(TIMER4, 10); // Imposta il debounce del pulsante
 }
 
 // Funzione che elabora i caratteri dal buffer circolare
@@ -136,8 +158,10 @@ void processReceivedData() {
     
     // Se ci sono caratteri nel buffer
     while (!cb_is_empty(&cb)) {
+        IEC0bits.U1RXIE = 0;   // disabilita interrupt RX
         // Pop del carattere dal buffer
         cb_pop(&cb, &receivedChar);
+        IEC0bits.U1RXIE = 1;   // Abilita interrupt RX
         
         handle_UART_FSM(receivedChar); // Gestisce il carattere in base alla FSM
     }
@@ -183,6 +207,12 @@ int main() {
     IFS1bits.INT1IF = 0; // Reset flag interrupt INT1
     IEC1bits.INT1IE = 1; // Abilita interrupt INT1
     
+    // pulsante su RE9
+    TRISEbits.TRISE9 = 1;        // Configura RE9 come input
+    RPINR1bits.INT2R = 0x59;     // Mappatura INT2 su RE9
+    IFS1bits.INT2IF = 0;         // Reset flag interrupt INT2
+    IEC1bits.INT2IE = 1;         // Abilita interrupt INT2
+    
     int ret;
     int i = 0;
     
@@ -212,6 +242,7 @@ int main() {
         
         ret = tmr_wait_period(TIMER1); // Aspetta il prossimo tick di Timer 1. Questa funzione aspetta che scada il periodo impostato per Timer1.
                                        //Se il timer NON è ancora scaduto, ret sarà 0.
-                                       //Se il timer è scaduto, ret sarà 1, segnalando che il ciclo può proseguire.      
+                                       //Se il timer è scaduto, ret sarà 1, segnalando che il ciclo può proseguire.
+        if(ret) missed_deadlines++;
     }
 }
